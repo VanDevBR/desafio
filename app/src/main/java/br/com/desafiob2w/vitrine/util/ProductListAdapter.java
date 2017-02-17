@@ -59,13 +59,18 @@ public class ProductListAdapter extends ArrayAdapter {
             imageView.setImageBitmap((Bitmap) prod.get("imgobj"));
 
             try {
+
                 URL url = new URL(prod.getString("img"));
                 Bitmap bmp = BitmapFactory.decodeStream(url.openConnection().getInputStream());
 
             }catch (MalformedURLException e){
+
                 e.printStackTrace();
+
             }catch (Exception ex){
+
                 ex.printStackTrace();
+
             }
 
 
