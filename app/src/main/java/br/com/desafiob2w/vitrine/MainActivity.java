@@ -1,5 +1,7 @@
 package br.com.desafiob2w.vitrine;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -9,14 +11,20 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedReader;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
+import br.com.desafiob2w.vitrine.util.ProductListAdapter;
+
 public class MainActivity extends AppCompatActivity {
+
+    ListView prodList;
+    List jsonProdList = new ArrayList();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -24,24 +32,28 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        AsyncTask.execute(new Runnable() {
-            @Override
-            public void run() {
-                getProducts();
-            }
-        });
+        prodList = (ListView) findViewById(R.id.productList);
+
+//        AsyncTask.execute(new Runnable() {
+//            @Override
+//            public void run() {
+//                getProducts();
+//            }
+//        });
+
+        new ApiOperation().execute();
 
 
     }
 
 
-    private class ApiOperation extends AsyncTask<Void, Void, JSONObject> {
+    private class ApiOperation extends AsyncTask<Void, Void, Void> {
 
         @Override
-        protected JSONObject doInBackground(Void... params) {
+        protected Void doInBackground(Void... params) {
 
             HttpURLConnection urlConnection = null;
-            JSONObject obj = null;
+
 
             try{
 
@@ -62,21 +74,42 @@ public class MainActivity extends AppCompatActivity {
                 // create JSON object from content
                 InputStream in = new BufferedInputStream(urlConnection.getInputStream());
 
-                obj = new JSONObject(getResponseText(in));
+                JSONArray jsonProdArray = new JSONArray(getResponseText(in));
+
+                if (jsonProdArray != null) {
+                    for (int i=0;i<jsonProdArray.length();i++){
+
+                        JSONObject obj = jsonProdArray.getJSONObject(i);
+
+                        try {
+                            URL imgUrl = new URL(obj.getString("img"));
+                            Bitmap bmp = BitmapFactory.decodeStream(imgUrl.openConnection().getInputStream());
+                            obj.put("imgobj",bmp);
+                        }catch (MalformedURLException e){
+                            e.printStackTrace();
+                        }catch (Exception ex){
+                            ex.printStackTrace();
+                        }
+
+                        jsonProdList.add(obj);
+
+                    }
+                }
+
+                in.close();
 
             }catch (Exception e){
                 e.printStackTrace();
             }
 
-            return obj;
-
-
+            return null;
         }
 
         protected void onPostExecute(Void result) {
 
-            // might want to change "executed" for the returned string passed
-            // into onPostExecute() but that is upto you
+            ProductListAdapter adapter = new ProductListAdapter(MainActivity.this, jsonProdList);
+            prodList.setAdapter(adapter);
+
         }
 
         private String getResponseText(InputStream inStream) {
@@ -84,47 +117,4 @@ public class MainActivity extends AppCompatActivity {
         }
 
     }
-
-
-    public JSONArray getProducts(){
-
-        HttpURLConnection urlConnection = null;
-        JSONArray prodList = null;
-
-        try{
-
-            URL url = new URL("https://apiadapter.ad5track.com/ads/americanas?api=b2wads&category_id=229187&size=10&term=Celulares%20e%20Smartphones");
-
-            urlConnection = (HttpURLConnection) url.openConnection();
-
-            urlConnection.setConnectTimeout(15000);
-            urlConnection.setReadTimeout(15000);
-
-            int statusCode = urlConnection.getResponseCode();
-            if (statusCode == HttpURLConnection.HTTP_UNAUTHORIZED) {
-                // handle unauthorized (if service requires user login)
-            } else if (statusCode != HttpURLConnection.HTTP_OK) {
-                // handle any other errors, like 404, 500,..
-            }
-
-            // create JSON object from content
-            InputStream in = new BufferedInputStream(urlConnection.getInputStream());
-            prodList = new JSONArray(getResponseText(in));
-
-            in.close();
-
-
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-
-        return prodList;
-
-    }
-
-
-    private static String getResponseText(InputStream inStream) {
-        return new Scanner(inStream).useDelimiter("\\A").next();
-    }
-
 }
